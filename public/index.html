@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ============================================================
+       SMART ATTENDANCE SYSTEM - Main HTML File
+       ============================================================
+       This is a Single Page Application (SPA).
+       All pages (login, register, dashboard) are in one HTML file.
+       JavaScript shows/hides sections based on user's login state.
+       ============================================================ -->
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- SEO Tags -->
+  <title>Smart Attendance System | Cloud-Based Attendance Tracker</title>
+  <meta name="description" content="Modern cloud-based attendance tracking system built with Node.js, MongoDB Atlas, and deployed on AWS EC2." />
+
+  <!-- Google Fonts - inter for clean modern look -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Our Custom Stylesheet -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ────────────────────────────────────────────────────────
+       LOADING SPINNER - Shows while page loads
+       ──────────────────────────────────────────────────────── -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="spinner-container">
+      <div class="spinner"></div>
+      <p class="spinner-text">Loading...</p>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────────────────────────────────
+       NOTIFICATION TOAST - For success/error messages
+       ──────────────────────────────────────────────────────── -->
+  <div id="toast" class="toast" role="alert" aria-live="polite">
+    <div class="toast-icon"><i id="toast-icon-class" class="fas fa-check-circle"></i></div>
+    <div class="toast-message" id="toast-message">Success!</div>
+    <button class="toast-close" onclick="closeToast()"><i class="fas fa-times"></i></button>
+  </div>
+
+  <!-- ============================================================
+       PAGE: AUTH (Login / Register)
+       Shows when user is NOT logged in
+       ============================================================ -->
+  <div id="auth-page" class="page auth-page">
+
+    <!-- Left side: Branding panel -->
+    <div class="auth-branding">
+      <div class="brand-content">
+        <div class="brand-logo">
+          <i class="fas fa-graduation-cap"></i>
+        </div>
+        <h1 class="brand-title">Smart Attendance</h1>
+        <p class="brand-subtitle">A cloud-powered attendance management system for modern institutions</p>
+
+        <!-- Feature list -->
+        <ul class="brand-features">
+          <li><i class="fas fa-cloud"></i> Hosted on AWS EC2</li>
+          <li><i class="fas fa-database"></i> MongoDB Atlas Cloud DB</li>
+          <li><i class="fas fa-shield-alt"></i> JWT Secured Access</li>
+          <li><i class="fas fa-chart-line"></i> Real-time Analytics</li>
+        </ul>
+
+        <!-- Architecture badge -->
+        <div class="arch-badge">
+          <span>3-Tier Cloud Architecture</span>
+        </div>
+      </div>
+
+      <!-- Floating decoration cards -->
+      <div class="deco-card deco-1">
+        <i class="fab fa-aws"></i>
+        <span>AWS EC2</span>
+      </div>
+      <div class="deco-card deco-2">
+        <i class="fas fa-leaf"></i>
+        <span>MongoDB</span>
+      </div>
+      <div class="deco-card deco-3">
+        <i class="fab fa-node-js"></i>
+        <span>Node.js</span>
+      </div>
+    </div>
+
+    <!-- Right side: Forms panel -->
+    <div class="auth-forms-panel">
+
+      <!-- ── LOGIN FORM ── -->
+      <div id="login-section" class="auth-form-wrapper active">
+        <div class="form-header">
+          <h2>Welcome Back!</h2>
+          <p>Sign in to track your attendance</p>
+        </div>
+
+        <form id="login-form" class="auth-form" novalidate>
+          <div class="form-group">
+            <label for="login-email">Email Address</label>
+            <div class="input-wrapper">
+              <i class="fas fa-envelope input-icon"></i>
+              <input
+                type="email"
+                id="login-email"
+                name="email"
+                placeholder="you@college.edu"
+                autocomplete="email"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <div class="input-wrapper">
+              <i class="fas fa-lock input-icon"></i>
+              <input
+                type="password"
+                id="login-password"
+                name="password"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+                required
+              />
+              <button type="button" class="password-toggle" onclick="togglePassword('login-password', this)">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" id="login-btn" class="btn btn-primary btn-full">
+            <span class="btn-text">
+              <i class="fas fa-sign-in-alt"></i>
+              Sign In
+            </span>
+            <span class="btn-loader hidden"><i class="fas fa-spinner fa-spin"></i> Signing in...</span>
+          </button>
+        </form>
+
+        <div class="auth-switch">
+          <p>Don't have an account?
+            <button class="link-btn" onclick="showRegister()">Create Account</button>
+          </p>
+        </div>
+
+        <!-- Demo credentials hint -->
+        <div class="demo-hint">
+          <i class="fas fa-info-circle"></i>
+          Register with any email to get started
+        </div>
+      </div>
+
+      <!-- ── REGISTER FORM ── -->
+      <div id="register-section" class="auth-form-wrapper">
+        <div class="form-header">
+          <h2>Create Account</h2>
+          <p>Join the Smart Attendance System</p>
+        </div>
+
+        <form id="register-form" class="auth-form" novalidate>
+          <div class="form-group">
+            <label for="reg-name">Full Name</label>
+            <div class="input-wrapper">
+              <i class="fas fa-user input-icon"></i>
+              <input
+                type="text"
+                id="reg-name"
+                name="name"
+                placeholder="Your Full Name"
+                autocomplete="name"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-email">Email Address</label>
+            <div class="input-wrapper">
+              <i class="fas fa-envelope input-icon"></i>
+              <input
+                type="email"
+                id="reg-email"
+                name="email"
+                placeholder="you@college.edu"
+                autocomplete="email"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-password">Password</label>
+            <div class="input-wrapper">
+              <i class="fas fa-lock input-icon"></i>
+              <input
+                type="password"
+                id="reg-password"
+                name="password"
+                placeholder="Minimum 6 characters"
+                autocomplete="new-password"
+                required
+                minlength="6"
+              />
+              <button type="button" class="password-toggle" onclick="togglePassword('reg-password', this)">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <div class="password-strength" id="password-strength"></div>
+          </div>
+
+          <button type="submit" id="register-btn" class="btn btn-primary btn-full">
+            <span class="btn-text">
+              <i class="fas fa-user-plus"></i>
+              Create Account
+            </span>
+            <span class="btn-loader hidden"><i class="fas fa-spinner fa-spin"></i> Creating...</span>
+          </button>
+        </form>
+
+        <div class="auth-switch">
+          <p>Already have an account?
+            <button class="link-btn" onclick="showLogin()">Sign In</button>
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PAGE: DASHBOARD
+       Shows when user IS logged in
+       ============================================================ -->
+  <div id="dashboard-page" class="page dashboard-page hidden">
+
+    <!-- ── TOP NAVIGATION BAR ── -->
+    <nav class="navbar" id="main-navbar">
+      <div class="nav-brand">
+        <i class="fas fa-graduation-cap"></i>
+        <span>Smart Attendance</span>
+      </div>
+
+      <div class="nav-center">
+        <div class="current-date-time" id="nav-datetime">
+          <i class="fas fa-clock"></i>
+          <span id="current-time">--:--:--</span>
+          <span class="date-divider">|</span>
+          <span id="current-date">--/--/----</span>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <div class="user-chip" id="user-chip">
+          <div class="user-avatar">
+            <i class="fas fa-user"></i>
+          </div>
+          <span id="nav-username">User</span>
+        </div>
+        <button class="btn btn-logout" id="logout-btn" onclick="logout()">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Logout</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- ── MAIN CONTENT ── -->
+    <main class="dashboard-main">
+
+      <!-- Welcome Section -->
+      <section class="welcome-section">
+        <div class="welcome-text">
+          <h1 id="welcome-heading">Good Morning! 👋</h1>
+          <p id="welcome-subtext">Ready to mark your attendance for today?</p>
+        </div>
+        <div class="today-badge">
+          <i class="fas fa-calendar-day"></i>
+          <div>
+            <span class="today-label">Today</span>
+            <span class="today-date" id="today-display">--</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── STATS CARDS ── -->
+      <section class="stats-section">
+        <div class="stat-card" id="stat-total">
+          <div class="stat-icon purple">
+            <i class="fas fa-calendar-check"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-number" id="stat-total-num">0</div>
+            <div class="stat-label">Total Days</div>
+          </div>
+        </div>
+
+        <div class="stat-card" id="stat-present">
+          <div class="stat-icon green">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-number" id="stat-present-num">0</div>
+            <div class="stat-label">On Time</div>
+          </div>
+        </div>
+
+        <div class="stat-card" id="stat-late">
+          <div class="stat-icon orange">
+            <i class="fas fa-clock"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-number" id="stat-late-num">0</div>
+            <div class="stat-label">Late Arrivals</div>
+          </div>
+        </div>
+
+        <div class="stat-card" id="stat-percent">
+          <div class="stat-icon blue">
+            <i class="fas fa-percentage"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-number" id="stat-percent-num">0%</div>
+            <div class="stat-label">Attendance</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── MARK ATTENDANCE + PROGRESS ── -->
+      <section class="action-section">
+
+        <!-- Mark Attendance Card -->
+        <div class="mark-card glass-card">
+          <div class="mark-card-header">
+            <div class="mark-card-icon">
+              <i class="fas fa-fingerprint"></i>
+            </div>
+            <div>
+              <h3>Mark Today's Attendance</h3>
+              <p id="today-status-text">Click the button below to record your presence</p>
+            </div>
+          </div>
+
+          <!-- Attendance status indicator -->
+          <div id="today-attendance-status" class="attendance-status-box hidden">
+            <i class="fas fa-check-circle status-icon"></i>
+            <div>
+              <strong>Already Marked!</strong>
+              <span id="marked-time-display">Today at --:--</span>
+            </div>
+          </div>
+
+          <!-- Mark Attendance Button -->
+          <button
+            id="mark-btn"
+            class="btn btn-mark-attendance"
+            onclick="markAttendance()"
+          >
+            <div class="btn-mark-inner">
+              <i class="fas fa-fingerprint btn-mark-icon"></i>
+              <span class="btn-mark-text">Mark My Attendance</span>
+            </div>
+            <div class="btn-mark-ripple"></div>
+          </button>
+
+          <p class="mark-card-note">
+            <i class="fas fa-info-circle"></i>
+            Attendance is recorded with current date and time (IST)
+          </p>
+        </div>
+
+        <!-- Attendance Progress Donut -->
+        <div class="progress-card glass-card">
+          <h3 class="progress-title">Attendance Rate</h3>
+          <div class="donut-wrapper">
+            <svg class="donut-chart" viewBox="0 0 120 120">
+              <circle class="donut-bg" cx="60" cy="60" r="50" />
+              <circle class="donut-progress" id="donut-progress" cx="60" cy="60" r="50"
+                stroke-dasharray="0 314"
+                stroke-dashoffset="78.5"
+              />
+            </svg>
+            <div class="donut-center">
+              <div class="donut-percent" id="donut-percent-text">0%</div>
+              <div class="donut-sub">attendance</div>
+            </div>
+          </div>
+          <div class="progress-legend">
+            <div class="legend-item">
+              <span class="legend-dot green"></span>
+              <span>On Time</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot orange"></span>
+              <span>Late</span>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ── ATTENDANCE RECORDS TABLE ── -->
+      <section class="records-section glass-card">
+        <div class="records-header">
+          <h3><i class="fas fa-list-alt"></i> Attendance Records</h3>
+          <div class="records-actions">
+            <span class="record-count" id="record-count">0 records</span>
+            <button class="btn btn-sm btn-outline" onclick="fetchRecords()">
+              <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading state -->
+        <div id="records-loading" class="records-loading">
+          <div class="mini-spinner"></div>
+          <span>Fetching records...</span>
+        </div>
+
+        <!-- Empty state -->
+        <div id="records-empty" class="records-empty hidden">
+          <i class="fas fa-calendar-times empty-icon"></i>
+          <p>No attendance records yet.</p>
+          <small>Mark your first attendance using the button above!</small>
+        </div>
+
+        <!-- Records Table -->
+        <div id="records-table-wrapper" class="table-wrapper hidden">
+          <table class="records-table" id="records-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th><i class="fas fa-calendar"></i> Date</th>
+                <th><i class="fas fa-calendar-week"></i> Day</th>
+                <th><i class="fas fa-clock"></i> Time</th>
+                <th><i class="fas fa-flag"></i> Status</th>
+              </tr>
+            </thead>
+            <tbody id="records-tbody">
+              <!-- Records will be injected here by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ── FOOTER ── -->
+    <footer class="dashboard-footer">
+      <span>Smart Attendance System</span>
+      <span class="footer-divider">•</span>
+      <span>Built with Node.js + MongoDB Atlas + AWS EC2</span>
+      <span class="footer-divider">•</span>
+      <span>3-Tier Cloud Architecture</span>
+    </footer>
+
+  </div>
+
+  <!-- ── JavaScript ── -->
+  <script src="js/app.js"></script>
+</body>
+</html>
