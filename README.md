@@ -31,6 +31,7 @@ This project adheres to professional AWS deployment and architecture guidelines.
 | 📦 **[S3_SETUP_GUIDE.md](docs/S3_SETUP_GUIDE.md)** | How to set up AWS S3 for profile pictures. |
 | 🔑 **[GOOGLE_AUTH_SETUP.md](docs/GOOGLE_AUTH_SETUP.md)** | How to configure Google OAuth2 credentials. |
 | 🛡️ **[NEW_EC2_SETUP.md](docs/NEW_EC2_SETUP.md)** | Guide for setting up a brand new EC2 instance. |
+| 🍃 **[MONGODB_SETUP_GUIDE.md](docs/MONGODB_SETUP_GUIDE.md)** | How to create your own free MongoDB Atlas cluster. |
 
 ---
 

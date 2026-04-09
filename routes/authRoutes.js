@@ -189,6 +189,14 @@ router.post('/login', async (req, res) => {
         role: user.role
       }
     });
+  } catch (error) {
+    console.error('Login Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during login. Please try again.'
+    });
+  }
+});
 
 // ──────────────────────────────────────────────
 // GOOGLE AUTH ROUTES
