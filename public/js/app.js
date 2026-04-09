@@ -25,13 +25,26 @@ let clockInterval = null;    // Timer for the live clock
 // INITIALIZE APP - Runs when page loads
 // ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Show loading overlay briefly for smooth startup
-  setTimeout(() => {
+  // SAFETY FALLBACK: If anything fails, force hide the overlay after 4 seconds
+  const safetyTimeout = setTimeout(() => {
     hideLoadingOverlay();
-    checkGoogleCallback(); // Check if we're returning from Google login
-    checkAuthState();      // Check if user is already logged in
-    setupEventListeners();
-    startLiveClock();
+  }, 4000);
+
+  // Normal startup
+  setTimeout(() => {
+    try {
+      hideLoadingOverlay();
+      clearTimeout(safetyTimeout); // Cancel the safety fallback
+      
+      checkGoogleCallback(); // Check if we're returning from Google login
+      checkAuthState();      // Check if user is already logged in
+      setupEventListeners();
+      startLiveClock();
+    } catch (err) {
+      console.error("Initialization Error:", err);
+      // Still hide the overlay so the user can see something (even if broken)
+      hideLoadingOverlay();
+    }
   }, 800);
 });
 
