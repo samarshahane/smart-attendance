@@ -197,43 +197,40 @@ async function handleRegister(event) {
 
 // ──────────────────────────────────────────────
 // MARK ATTENDANCE
-// Called when user clicks the big "Mark Attendance" button
 // ──────────────────────────────────────────────
 async function markAttendance() {
   const btn = document.getElementById('mark-btn');
+  const btnText = document.getElementById('mark-btn-text');
 
-  // If already marked, show tooltip instead
-  if (btn.disabled) {
-    showToast('Attendance already marked for today!', 'warning');
-    return;
-  }
+  if (btn.disabled) return;
 
   // Show loading
   btn.disabled = true;
-  btn.querySelector('.btn-mark-text').textContent = 'Marking...';
+  const originalText = btnText.textContent;
+  btnText.textContent = 'Recording Presence...';
 
   try {
     const response = await apiCall('/api/mark', 'POST', {}, true);
 
     if (response.success) {
       showToast(response.message, 'success');
-
-      // Update the status box
-      showAttendanceMarkedState(response.data);
-
-      // Refresh the records table
+      // Success feedback
+      btn.classList.add('btn-success');
+      btnText.textContent = '✓ Record Saved';
+      
+      // Refresh the records table and stats
       await fetchRecords();
 
     } else {
       showToast(response.message || 'Failed to mark attendance!', 'error');
       btn.disabled = false;
-      btn.querySelector('.btn-mark-text').textContent = 'Mark My Attendance';
+      btnText.textContent = originalText;
     }
 
   } catch (error) {
     showToast(error.message || 'Server error. Please try again.', 'error');
     btn.disabled = false;
-    btn.querySelector('.btn-mark-text').textContent = 'Mark My Attendance';
+    btnText.textContent = originalText;
   }
 }
 
@@ -241,59 +238,158 @@ async function markAttendance() {
 // FETCH ATTENDANCE RECORDS
 // Loads all attendance records for current user from DB
 // ──────────────────────────────────────────────
+// ──────────────────────────────────────────────
+// FETCH ATTENDANCE RECORDS & TIMETABLE
+// ──────────────────────────────────────────────
 async function fetchRecords() {
   const loadingEl = document.getElementById('records-loading');
   const emptyEl   = document.getElementById('records-empty');
   const tableEl   = document.getElementById('records-table-wrapper');
   const countEl   = document.getElementById('record-count');
 
-  // Show loading state
-  loadingEl.classList.remove('hidden');
-  emptyEl.classList.add('hidden');
-  tableEl.classList.add('hidden');
-
   try {
     const response = await apiCall('/api/records', 'GET', null, true);
-
     if (!response.success) throw new Error(response.message);
 
-    const { records, stats } = response;
+    const { records, stats, timetable } = response;
 
-    // Update stat cards with animation
-    animateNumber('stat-total-num',   stats.totalDays);
-    animateNumber('stat-present-num', stats.presentDays);
-    animateNumber('stat-late-num',    stats.lateDays);
-    document.getElementById('stat-percent-num').textContent = stats.attendancePercentage + '%';
+    // 1. Update overall Stats Card
+    document.getElementById('total-days').textContent = stats.totalDays;
+    const avgPercent = stats.subjectBreakdown.length > 0
+      ? Math.round(stats.subjectBreakdown.reduce((acc, s) => acc + s.percentage, 0) / stats.subjectBreakdown.length)
+      : 0;
+    
+    document.getElementById('attendance-pct').textContent = avgPercent + '%';
+    updateDonut(avgPercent);
 
-    // Update donut chart
-    updateDonut(stats.attendancePercentage);
+    // 2. Render Weekly Schedule
+    renderTimetable(timetable);
 
-    // Update record count badge
-    countEl.textContent = `${records.length} record${records.length !== 1 ? 's' : ''}`;
+    // 3. Render Subject Breakdown
+    renderSubjectStats(stats.subjectBreakdown);
 
+    // 4. Render Records Table
     loadingEl.classList.add('hidden');
-
     if (records.length === 0) {
       emptyEl.classList.remove('hidden');
-      return;
+      countEl.textContent = '0 records';
+    } else {
+      renderRecordsTable(records);
+      tableEl.classList.remove('hidden');
+      countEl.textContent = `${records.length} records`;
     }
 
-    // Render the records table
-    renderRecordsTable(records);
-    tableEl.classList.remove('hidden');
-
-    // Check if today's attendance already marked
-    const today = new Date().toLocaleDateString('en-CA');
-    const todayRecord = records.find(r => r.date === today);
-    if (todayRecord) {
-      markButtonAsAlreadyMarked(todayRecord);
-    }
+    // 5. Update Active Session status
+    updateActiveSessionUI(timetable, records);
 
   } catch (error) {
     console.error('Fetch records error:', error);
     loadingEl.classList.add('hidden');
-    emptyEl.classList.remove('hidden');
-    showToast('Could not load records: ' + error.message, 'error');
+    showToast('Failed to sync. ' + error.message, 'error');
+  }
+}
+
+// ──────────────────────────────────────────────
+// RENDER TIMETABLE GRID
+// ──────────────────────────────────────────────
+function renderTimetable(timetable) {
+  const container = document.getElementById('timetable-display');
+  const currentDay = new Date().toLocaleDateString('en-IN', { weekday: 'long', timeZone: 'Asia/Kolkata' });
+  document.getElementById('current-day-badge').textContent = currentDay;
+
+  container.innerHTML = '';
+  const dayClasses = timetable[currentDay] || [];
+
+  if (dayClasses.length === 0) {
+    container.innerHTML = '<div class="timetable-empty">No classes scheduled for today! 🎉</div>';
+    return;
+  }
+
+  const nowStr = new Date().toLocaleTimeString('en-IN', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+
+  dayClasses.forEach(cls => {
+    const isActive = nowStr >= cls.start && nowStr <= cls.end;
+    const item = document.createElement('div');
+    item.className = `timetable-item ${isActive ? 'active' : ''}`;
+    
+    item.innerHTML = `
+      ${isActive ? '<span class="active-indicator">Ongoing</span>' : ''}
+      <span class="timetable-time"><i class="far fa-clock"></i> ${cls.start} - ${cls.end}</span>
+      <div class="timetable-name">${cls.name}</div>
+    `;
+    container.appendChild(item);
+  });
+}
+
+// ──────────────────────────────────────────────
+// RENDER SUBJECT BREAKDOWN CARDS
+// ──────────────────────────────────────────────
+function renderSubjectStats(breakdown) {
+  const container = document.getElementById('subject-stats-grid');
+  container.innerHTML = '';
+
+  breakdown.forEach(sub => {
+    const card = document.createElement('div');
+    card.className = 'subject-card';
+    card.innerHTML = `
+      <div class="sub-card-header">
+        <div>
+          <span class="sub-name">${sub.name}</span>
+          <span class="sub-count">${sub.attended} Lectures Attended</span>
+        </div>
+        <span class="sub-percent">${sub.percentage}%</span>
+      </div>
+      <div class="sub-progress-container">
+        <div class="sub-progress-bar" style="width: ${sub.percentage}%"></div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// ──────────────────────────────────────────────
+// UPDATE ACTIVE SESSION & BUTTON GATE
+// ──────────────────────────────────────────────
+function updateActiveSessionUI(timetable, records) {
+  const titleEl = document.getElementById('current-subject-title');
+  const subtitleEl = document.getElementById('today-status-text');
+  const btn = document.getElementById('mark-btn');
+  const btnText = document.getElementById('mark-btn-text');
+  const statusBox = document.getElementById('today-attendance-status');
+  const markedDisplay = document.getElementById('marked-time-display');
+
+  const now = new Date();
+  const day = now.toLocaleDateString('en-IN', { weekday: 'long', timeZone: 'Asia/Kolkata' });
+  const nowStr = now.toLocaleTimeString('en-IN', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+
+  const activeClass = (timetable[day] || []).find(c => nowStr >= c.start && nowStr <= c.end);
+
+  if (!activeClass) {
+    titleEl.textContent = 'No Active Lecture';
+    subtitleEl.textContent = 'Come back during your next scheduled class.';
+    btn.disabled = true;
+    btnText.textContent = 'No Session Right Now';
+    statusBox.classList.add('hidden');
+    return;
+  }
+
+  // Lecture is active!
+  titleEl.textContent = activeClass.name;
+  subtitleEl.textContent = `Ongoing from ${activeClass.start} to ${activeClass.end}`;
+
+  // Check if ALREADY marked for this specific subject today
+  const todayDate = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const alreadyMarked = records.find(r => r.date === todayDate && r.subject === activeClass.name);
+
+  if (alreadyMarked) {
+    btn.disabled = true;
+    btnText.textContent = '✓ Attendance Saved';
+    statusBox.classList.remove('hidden');
+    markedDisplay.textContent = `Recorded for ${activeClass.name} at ${alreadyMarked.time}`;
+  } else {
+    btn.disabled = false;
+    btnText.textContent = 'Mark Attendance Now';
+    statusBox.classList.add('hidden');
   }
 }
 
@@ -324,7 +420,7 @@ function renderRecordsTable(records) {
     row.innerHTML = `
       <td>${records.length - index}</td>
       <td>${displayDate}</td>
-      <td>${record.dayOfWeek || '—'}</td>
+      <td style="font-weight:600">${record.subject || 'General'}</td>
       <td>${record.time}</td>
       <td>${statusBadge}</td>
     `;
@@ -560,8 +656,18 @@ function startLiveClock() {
 
     const timeEl = document.getElementById('current-time');
     const dateEl = document.getElementById('current-date');
+    const liveTimeEl = document.getElementById('current-live-time');
+
     if (timeEl) timeEl.textContent = time;
     if (dateEl) dateEl.textContent = date;
+    if (liveTimeEl) liveTimeEl.textContent = time;
+    
+    // Auto-refresh active session check every minute
+    if (now.getSeconds() === 0) {
+      if (document.getElementById('dashboard-page').classList.contains('hidden') === false) {
+         fetchRecords(); 
+      }
+    }
   }
 
   updateClock();

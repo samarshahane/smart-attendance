@@ -10,141 +10,131 @@ const express      = require('express');
 const Attendance   = require('../models/Attendance');
 const verifyToken  = require('../middleware/authMiddleware');
 
+const { WEEKLY_TIMETABLE, getCurrentSubject } = require('../utils/timetable');
+
 const router = express.Router();
 
 // ──────────────────────────────────────────────
 // POST /api/mark
-// Purpose: Mark attendance for the logged-in user
+// Purpose: Mark attendance for the LOGGED-IN lecture
 // Access: Protected (requires valid JWT token)
 // ──────────────────────────────────────────────
 router.post('/mark', verifyToken, async (req, res) => {
   try {
-    // Step 1: Get user info from the decoded JWT token
-    // (verifyToken middleware added this to req.user)
     const { userId, name, email } = req.user;
-
-    // Step 2: Get today's date and current time
     const now = new Date();
 
-    // Format date as YYYY-MM-DD (e.g., "2024-01-15")
-    const date = now.toLocaleDateString('en-CA'); // YYYY-MM-DD format
-
-    // Format time as HH:MM:SS AM/PM (e.g., "10:30:00 AM")
-    const time = now.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true,
-      timeZone: 'Asia/Kolkata'  // IST timezone
-    });
-
-    // Get day of week (e.g., "Monday")
-    const dayOfWeek = now.toLocaleDateString('en-IN', {
-      weekday: 'long',
-      timeZone: 'Asia/Kolkata'
-    });
-
-    // Step 3: Check if attendance already marked for today
-    const existingAttendance = await Attendance.findOne({ userId, date });
-    if (existingAttendance) {
-      return res.status(409).json({
+    // Step 1: Check TIMETABLE - Is there a class right now?
+    const currentClass = getCurrentSubject(now);
+    
+    if (!currentClass) {
+      return res.status(400).json({
         success: false,
-        message: `Attendance already marked for today (${date}) at ${existingAttendance.time}`
+        message: 'No active lecture found at this time. You can only mark attendance during class hours.'
       });
     }
 
-    // Step 4: Determine if student is late (after 9 AM = late)
-    const hour = now.getHours();
-    const status = hour >= 9 ? 'late' : 'present';
+    const subjectName = currentClass.name;
 
-    // Step 5: Create attendance record in database
+    // Step 2: Get today's date and current time (IST)
+    const date = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD
+    const time = now.toLocaleTimeString('en-IN', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit', 
+      hour12: true, timeZone: 'Asia/Kolkata'
+    });
+    const dayOfWeek = now.toLocaleDateString('en-IN', { weekday: 'long', timeZone: 'Asia/Kolkata' });
+
+    // Step 3: Check if attendance already marked for THIS SUBJECT today
+    const existing = await Attendance.findOne({ userId, date, subject: subjectName });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: `Attendance already marked for ${subjectName} today at ${existing.time}`
+      });
+    }
+
+    // Step 4: Determine status (Late if 10 mins after start)
+    const [startHour, startMin] = currentClass.start.split(':').map(Number);
+    const markHour = now.getHours();
+    const markMin = now.getMinutes();
+    
+    let status = 'present';
+    if (markHour > startHour || (markHour === startHour && markMin > startMin + 10)) {
+      status = 'late';
+    }
+
+    // Step 5: Save Record
     const attendance = new Attendance({
-      userId,
-      userName: name,
-      userEmail: email,
-      date,
-      time,
-      dayOfWeek,
-      status
+      userId, userName: name, userEmail: email,
+      date, time, dayOfWeek, status, subject: subjectName
     });
 
-    // Step 6: Save to MongoDB
     await attendance.save();
 
-    // Step 7: Send success response
     res.status(201).json({
       success: true,
-      message: `✅ Attendance marked successfully for ${date}!`,
-      data: {
-        date,
-        time,
-        dayOfWeek,
-        status,
-        userName: name
-      }
+      message: `✅ Attendance for ${subjectName} marked successfully!`,
+      data: { subject: subjectName, date, time, status }
     });
 
   } catch (error) {
-    // Handle duplicate key error (user marked attendance twice same day)
-    if (error.code === 11000) {
-      return res.status(409).json({
-        success: false,
-        message: 'Attendance already marked for today!'
-      });
-    }
-
     console.error('Mark Attendance Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while marking attendance.'
-    });
+    res.status(500).json({ success: false, message: 'Server error while marking attendance.' });
   }
 });
 
 // ──────────────────────────────────────────────
 // GET /api/records
-// Purpose: Fetch all attendance records for logged-in user
-// Access: Protected (requires valid JWT token)
+// Purpose: Fetch all attendance records with Subject Breakdown
+// Access: Protected
 // ──────────────────────────────────────────────
 router.get('/records', verifyToken, async (req, res) => {
   try {
-    // Step 1: Get user ID from token
     const { userId } = req.user;
 
-    // Step 2: Fetch all attendance records for this user
-    // Sort by date in descending order (newest first)
-    const records = await Attendance
-      .find({ userId })
-      .sort({ date: -1, createdAt: -1 })  // Newest first
-      .select('-__v');                      // Exclude internal __v field
+    // 1. Fetch all records
+    const records = await Attendance.find({ userId }).sort({ createdAt: -1 });
 
-    // Step 3: Calculate statistics
-    const totalDays   = records.length;
-    const presentDays = records.filter(r => r.status === 'present').length;
-    const lateDays    = records.filter(r => r.status === 'late').length;
-    const percentage  = totalDays > 0
-      ? Math.round(((presentDays + lateDays) / totalDays) * 100)
-      : 0;
+    // 2. Identify all unique subjects from the Timetable
+    const allSubjects = [];
+    Object.values(WEEKLY_TIMETABLE).forEach(dayClasses => {
+      dayClasses.forEach(cls => {
+        if (!allSubjects.includes(cls.name)) allSubjects.push(cls.name);
+      });
+    });
 
-    // Step 4: Send records and stats
+    // 3. Calculate breakdown per subject
+    const subjectStats = allSubjects.map(subName => {
+      const subRecords = records.filter(r => r.subject === subName);
+      const presentCount = subRecords.filter(r => r.status !== 'absent').length;
+      
+      return {
+        name: subName,
+        attended: presentCount,
+        percentage: subRecords.length > 0 ? Math.round((presentCount / subRecords.length) * 100) : 0
+      };
+    });
+
+    // 4. Overall stats
+    const totalAttended = records.length;
+    const presentCount = records.filter(r => r.status === 'present').length;
+    const lateCount = records.filter(r => r.status === 'late').length;
+
     res.status(200).json({
       success: true,
-      message: `Found ${totalDays} attendance records`,
       stats: {
-        totalDays,
-        presentDays,
-        lateDays,
-        attendancePercentage: percentage
+        totalDays: totalAttended,
+        presentDays: presentCount,
+        lateDays: lateCount,
+        subjectBreakdown: subjectStats
       },
-      records
+      records,
+      timetable: WEEKLY_TIMETABLE // Send TT to frontend for display
     });
 
   } catch (error) {
     console.error('Fetch Records Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching attendance records.'
-    });
+    res.status(500).json({ success: false, message: 'Server error while fetching records.' });
   }
 });
 

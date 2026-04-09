@@ -360,8 +360,8 @@
               <i class="fas fa-fingerprint"></i>
             </div>
             <div>
-              <h3>Mark Today's Attendance</h3>
-              <p id="today-status-text">Click the button below to record your presence</p>
+              <h3 id="current-subject-title">No Active Lecture</h3>
+              <p id="today-status-text">Marking is enabled during scheduled lecture timings only.</p>
             </div>
           </div>
 
@@ -379,17 +379,18 @@
             id="mark-btn"
             class="btn btn-mark-attendance"
             onclick="markAttendance()"
+            disabled
           >
             <div class="btn-mark-inner">
               <i class="fas fa-fingerprint btn-mark-icon"></i>
-              <span class="btn-mark-text">Mark My Attendance</span>
+              <span class="btn-mark-text" id="mark-btn-text">Mark Attendance</span>
             </div>
             <div class="btn-mark-ripple"></div>
           </button>
 
-          <p class="mark-card-note">
-            <i class="fas fa-info-circle"></i>
-            Attendance is recorded with current date and time (IST)
+          <p id="time-until-next" class="mark-card-note">
+            <i class="fas fa-clock"></i>
+            Current Time: <span id="current-live-time">--:--</span>
           </p>
         </div>
 
@@ -423,6 +424,26 @@
 
       </section>
 
+      <!-- ── WEEKLY TIMETABLE ── -->
+      <section class="timetable-section glass-card">
+        <div class="section-header">
+          <h3><i class="fas fa-calendar-alt"></i> Weekly Schedule</h3>
+          <span class="day-badge" id="current-day-badge">Today</span>
+        </div>
+        <div class="timetable-grid" id="timetable-display">
+          <!-- Timetable will be injected here -->
+          <div class="timetable-loading">Loading schedule...</div>
+        </div>
+      </section>
+
+      <!-- ── SUBJECT STATS ── -->
+      <section class="subject-stats-section">
+        <h3 class="section-title"><i class="fas fa-chart-pie"></i> Subject Breakdown</h3>
+        <div class="subject-grid" id="subject-stats-grid">
+           <!-- Subject cards will be injected here -->
+        </div>
+      </section>
+
       <!-- ── ATTENDANCE RECORDS TABLE ── -->
       <section class="records-section glass-card">
         <div class="records-header">
@@ -445,7 +466,7 @@
         <div id="records-empty" class="records-empty hidden">
           <i class="fas fa-calendar-times empty-icon"></i>
           <p>No attendance records yet.</p>
-          <small>Mark your first attendance using the button above!</small>
+          <p class="empty-sub">Wait for your first lecture to start!</p>
         </div>
 
         <!-- Records Table -->
@@ -455,7 +476,7 @@
               <tr>
                 <th>#</th>
                 <th><i class="fas fa-calendar"></i> Date</th>
-                <th><i class="fas fa-calendar-week"></i> Day</th>
+                <th><i class="fas fa-book"></i> Subject</th>
                 <th><i class="fas fa-clock"></i> Time</th>
                 <th><i class="fas fa-flag"></i> Status</th>
               </tr>

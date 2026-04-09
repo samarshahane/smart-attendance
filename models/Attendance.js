@@ -52,6 +52,12 @@ const attendanceSchema = new mongoose.Schema(
     // Day of the week (Monday, Tuesday, etc.)
     dayOfWeek: {
       type: String
+    },
+
+    // Subject name (e.g., "Cloud Computing")
+    subject: {
+      type: String,
+      required: true
     }
   },
   {
@@ -60,9 +66,10 @@ const attendanceSchema = new mongoose.Schema(
   }
 );
 
-// Create a compound index to prevent duplicate attendance for same user on same date
-// This ensures a user cannot mark attendance twice on the same day
-attendanceSchema.index({ userId: 1, date: 1 }, { unique: true });
+// Create a compound index to prevent duplicate attendance for same user, date AND subject
+// This ensures a user cannot mark attendance for the SAME lecture twice, 
+// but CAN mark for different subjects on the same day.
+attendanceSchema.index({ userId: 1, date: 1, subject: 1 }, { unique: true });
 
 // Export the model
 // Collection name in MongoDB will be "attendances"
