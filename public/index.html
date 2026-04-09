@@ -143,6 +143,15 @@
             </span>
             <span class="btn-loader hidden"><i class="fas fa-spinner fa-spin"></i> Signing in...</span>
           </button>
+
+          <div class="auth-divider">
+            <span>OR</span>
+          </div>
+
+          <a href="/api/google" class="btn btn-google btn-full">
+            <i class="fab fa-google"></i>
+            Continue with Google
+          </a>
         </form>
 
         <div class="auth-switch">
@@ -259,7 +268,7 @@
 
       <div class="nav-actions">
         <div class="user-chip" id="user-chip">
-          <div class="user-avatar">
+          <div class="user-avatar" id="nav-avatar">
             <i class="fas fa-user"></i>
           </div>
           <span id="nav-username">User</span>
@@ -276,9 +285,18 @@
 
       <!-- Welcome Section -->
       <section class="welcome-section">
-        <div class="welcome-text">
-          <h1 id="welcome-heading">Good Morning! 👋</h1>
-          <p id="welcome-subtext">Ready to mark your attendance for today?</p>
+        <div class="welcome-profile">
+            <div class="profile-img-container">
+                <img id="dashboard-profile-img" src="https://ui-avatars.com/api/?name=User&background=6366f1&color=fff" alt="Profile">
+                <label for="profile-upload" class="profile-upload-btn" title="Update Profile Picture">
+                    <i class="fas fa-camera"></i>
+                </label>
+                <input type="file" id="profile-upload" accept="image/*" class="hidden" onchange="uploadProfilePicture(this)">
+            </div>
+            <div class="welcome-text">
+              <h1 id="welcome-heading">Good Morning! 👋</h1>
+              <p id="welcome-subtext">Ready to mark your attendance for today?</p>
+            </div>
         </div>
         <div class="today-badge">
           <i class="fas fa-calendar-day"></i>

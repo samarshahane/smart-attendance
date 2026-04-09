@@ -12,6 +12,8 @@ const express    = require('express');
 const mongoose   = require('mongoose');
 const cors       = require('cors');
 const path       = require('path');
+const passport   = require('passport');
+const session    = require('express-session'); // Required for passport sessions
 
 // Import route files
 const authRoutes       = require('./routes/authRoutes');
@@ -38,8 +40,18 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Session configuration (required for Passport)
+app.use(session({
+  secret: process.env.JWT_SECRET || 'attendance-secret',
+  resave: false,
+  saveUninitialized: false
+}));
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
 // Serve static frontend files from the 'public' folder
-// This means our HTML/CSS/JS files will be accessible via the server
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ──────────────────────────────────────────────

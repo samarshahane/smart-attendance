@@ -30,9 +30,10 @@ const userSchema = new mongoose.Schema(
     },
 
     // User's password (will be stored as bcrypt hash)
+    // Optional because Google OAuth users don't have a password
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: function() { return !this.googleId; }, // Required ONLY if not using Google
       minlength: [6, 'Password must be at least 6 characters']
     },
 
@@ -41,6 +42,19 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ['student', 'admin'],
       default: 'student'
+    },
+
+    // Google OAuth ID (only for social login users)
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true             // Allows nulls while keeping uniqueness
+    },
+
+    // URL to profile picture (stored on AWS S3)
+    profilePictureUrl: {
+      type: String,
+      default: ''
     }
   },
   {

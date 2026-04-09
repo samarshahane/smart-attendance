@@ -18,6 +18,22 @@ Browser (Frontend) → AWS EC2 Node.js (Backend) → MongoDB Atlas (Database)
 
 ---
 
+## 🛠️ Documentation & Guidelines (AWS Compliance)
+
+This project adheres to professional AWS deployment and architecture guidelines. See the detailed documentation below:
+
+| Document | Description |
+| :--- | :--- |
+| 📝 **[REQUIREMENTS.md](docs/REQUIREMENTS.md)** | Functional and Non-functional specifications. |
+| 🏗️ **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** | 3-Tier architecture details and Mermaid diagrams. |
+| 🧪 **[TESTING.md](docs/TESTING.md)** | Test cases and results for functional & security tests. |
+| ☁️ **[aws-deployment.md](docs/aws-deployment.md)** | Full guide for EC2 and MongoDB Atlas setup. |
+| 📦 **[S3_SETUP_GUIDE.md](docs/S3_SETUP_GUIDE.md)** | How to set up AWS S3 for profile pictures. |
+| 🔑 **[GOOGLE_AUTH_SETUP.md](docs/GOOGLE_AUTH_SETUP.md)** | How to configure Google OAuth2 credentials. |
+| 🛡️ **[NEW_EC2_SETUP.md](docs/NEW_EC2_SETUP.md)** | Guide for setting up a brand new EC2 instance. |
+
+---
+
 ## ✨ Features
 
 - ✅ User Registration with bcrypt password hashing

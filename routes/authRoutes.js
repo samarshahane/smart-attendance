@@ -1,17 +1,69 @@
-// ============================================================
-// AUTH ROUTES - Registration and Login
-// ============================================================
-// This file handles:
-//   POST /api/register → Create new user account
-//   POST /api/login    → Login and get JWT token
-// ============================================================
-
 const express  = require('express');
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User     = require('../models/User');
+const upload   = require('../middleware/s3Upload');
+const verifyToken = require('../middleware/authMiddleware');
 
 const router = express.Router();
+
+// ──────────────────────────────────────────────
+// HELPERS
+// ──────────────────────────────────────────────
+const generateToken = (user) => {
+  return jwt.sign(
+    { userId: user._id, email: user.email, name: user.name },
+    process.env.JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+};
+
+// ──────────────────────────────────────────────
+// PASSPORT GOOGLE STRATEGY CONFIG
+// ──────────────────────────────────────────────
+passport.use(new GoogleStrategy({
+    clientID:     process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL:  process.env.CALLBACK_URL || "/api/google/callback"
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      // Find or create user in our database
+      let user = await User.findOne({ googleId: profile.id });
+      
+      if (!user) {
+        // Check if user exists with same email but no Google ID
+        user = await User.findOne({ email: profile.emails[0].value });
+        
+        if (user) {
+          // Link Google ID to existing email account
+          user.googleId = profile.id;
+          await user.save();
+        } else {
+          // Create new user
+          user = new User({
+            name: profile.displayName,
+            email: profile.emails[0].value,
+            googleId: profile.id,
+            profilePictureUrl: profile.photos[0].value // Use Google profile pic as default
+          });
+          await user.save();
+        }
+      }
+      return done(null, user);
+    } catch (err) {
+      return done(err, null);
+    }
+  }
+));
+
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser(async (id, done) => {
+  const user = await User.findById(id);
+  done(null, user);
+});
 
 // ──────────────────────────────────────────────
 // POST /api/register
@@ -138,12 +190,55 @@ router.post('/login', async (req, res) => {
       }
     });
 
-  } catch (error) {
-    console.error('Login Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during login. Please try again.'
+// ──────────────────────────────────────────────
+// GOOGLE AUTH ROUTES
+// ──────────────────────────────────────────────
+
+// Trigger Google Login
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+// Callback: After Google authenticates, it sends user here
+router.get('/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/?error=google_failed' }),
+  (req, res) => {
+    // Generate JWT for the frontend to use
+    const token = generateToken(req.user);
+    const userData = JSON.stringify({
+      id: req.user._id,
+      name: req.user.name,
+      email: req.user.email,
+      profilePictureUrl: req.user.profilePictureUrl
     });
+
+    // Redirect back to frontend with token and user in URL (temporary for login)
+    // The frontend JS will catch this and save to localStorage
+    res.redirect(`/?token=${token}&user=${encodeURIComponent(userData)}`);
+  }
+);
+
+// ──────────────────────────────────────────────
+// S3 PROFILE UPLOAD
+// ──────────────────────────────────────────────
+router.post('/upload-profile', verifyToken, upload.single('profilePic'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    // multer-s3 attaches the location (URL) to req.file
+    const imageUrl = req.file.location;
+
+    // Update user in DB
+    await User.findByIdAndUpdate(req.user.userId, { profilePictureUrl: imageUrl });
+
+    res.json({
+      success: true,
+      message: 'Profile picture updated successfully!',
+      imageUrl: imageUrl
+    });
+  } catch (error) {
+    console.error('Upload Error:', error);
+    res.status(500).json({ success: false, message: 'Error uploading to cloud storage.' });
   }
 });
 

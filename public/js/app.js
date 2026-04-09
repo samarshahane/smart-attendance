@@ -28,11 +28,31 @@ document.addEventListener('DOMContentLoaded', () => {
   // Show loading overlay briefly for smooth startup
   setTimeout(() => {
     hideLoadingOverlay();
-    checkAuthState();     // Check if user is already logged in
+    checkGoogleCallback(); // Check if we're returning from Google login
+    checkAuthState();      // Check if user is already logged in
     setupEventListeners();
     startLiveClock();
   }, 800);
 });
+
+// ──────────────────────────────────────────────
+// GOOGLE CALLBACK CHECK
+// If URL has ?token=...&user=..., save to localStorage
+// ──────────────────────────────────────────────
+function checkGoogleCallback() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+  const user  = urlParams.get('user');
+
+  if (token && user) {
+    localStorage.setItem('attendance_token', token);
+    localStorage.setItem('attendance_user', user);
+    
+    // Clean URL
+    window.history.replaceState({}, document.title, "/");
+    showToast("Successfully logged in with Google! 🚀", "success");
+  }
+}
 
 // ──────────────────────────────────────────────
 // AUTH STATE CHECK
@@ -336,6 +356,20 @@ function showDashboard() {
   // Populate user info in navbar
   if (currentUser) {
     document.getElementById('nav-username').textContent = currentUser.name;
+    
+    // Update profile pictures
+    const photoUrl = currentUser.profilePictureUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=6366f1&color=fff`;
+    
+    const navAvatar = document.getElementById('nav-avatar');
+    if (navAvatar) {
+        navAvatar.innerHTML = `<img src="${photoUrl}" alt="User">`;
+    }
+    
+    const dashProfileImg = document.getElementById('dashboard-profile-img');
+    if (dashProfileImg) {
+        dashProfileImg.src = photoUrl;
+    }
+
     setWelcomeGreeting();
   }
 
@@ -376,8 +410,14 @@ async function apiCall(endpoint, method = 'GET', body = null, requiresAuth = fal
   }
 
   const options = { method, headers };
-  if (body && method !== 'GET') {
-    options.body = JSON.stringify(body);
+  if (body) {
+    if (body instanceof FormData) {
+        // For file uploads, don't set Content-Type header manually (browser does it)
+        delete headers['Content-Type'];
+        options.body = body;
+    } else if (method !== 'GET') {
+        options.body = JSON.stringify(body);
+    }
   }
 
   const url = `${API_BASE_URL}${endpoint}`;
@@ -621,5 +661,48 @@ function hideLoadingOverlay() {
   if (overlay) {
     overlay.classList.add('fade-out');
     setTimeout(() => overlay.remove(), 500);
+  }
+}
+// ──────────────────────────────────────────────
+// PROFILE PICTURE UPLOAD
+// ──────────────────────────────────────────────
+async function uploadProfilePicture(input) {
+  if (!input.files || !input.files[0]) return;
+
+  const file = input.files[0];
+  
+  // Basic size check (5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    return showToast("File is too large! Maximum 5MB allowed.", "error");
+  }
+
+  const formData = new FormData();
+  formData.append('profilePic', file);
+
+  showToast("Uploading your profile picture... ⏳", "warning");
+
+  try {
+    const response = await apiCall('/api/upload-profile', 'POST', formData, true);
+
+    if (response.success) {
+      showToast("Profile picture updated! ✨", "success");
+      
+      // Update local storage and UI
+      currentUser.profilePictureUrl = response.imageUrl;
+      localStorage.setItem('attendance_user', JSON.stringify(currentUser));
+      
+      // Refresh UI
+      document.getElementById('nav-avatar').innerHTML = `<img src="${response.imageUrl}" alt="User">`;
+      document.getElementById('dashboard-profile-img').src = response.imageUrl;
+      
+    } else {
+      showToast(response.message || "Upload failed!", "error");
+    }
+  } catch (error) {
+    console.error("Upload error:", error);
+    showToast(error.message || "Failed to upload image.", "error");
+  } finally {
+    // Clear input so same file can be selected again
+    input.value = '';
   }
 }

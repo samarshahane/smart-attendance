@@ -623,6 +623,44 @@ body {
   transform: translateY(-1px);
 }
 
+/* Google Button */
+.btn-google {
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.btn-google:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+.btn-google i {
+  color: #4285F4;
+  font-size: 1.1rem;
+}
+
+/* Auth Divider */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin: var(--space-md) 0;
+  color: var(--clr-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--clr-border);
+}
+
 /* Button loader states */
 .btn-loader { display: flex; align-items: center; gap: 8px; }
 
@@ -778,7 +816,7 @@ body {
   gap: var(--space-xl);
 }
 
-/* ── Welcome Section ── */
+/* ── Welcome Section & Profile ── */
 .welcome-section {
   display: flex;
   justify-content: space-between;
@@ -790,9 +828,59 @@ body {
   animation: slide-up 0.5s ease;
 }
 
-@keyframes slide-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
+.welcome-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.profile-img-container {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  padding: 3px;
+  background: var(--grad-primary);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.profile-img-container img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--clr-bg-dark);
+}
+
+.profile-upload-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 28px;
+  height: 28px;
+  background: #1f2937;
+  border: 1px solid var(--clr-border-2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: white;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.profile-upload-btn:hover {
+  background: var(--clr-accent);
+  transform: scale(1.1);
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .welcome-text h1 {
